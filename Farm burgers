@@ -3,7 +3,9 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-local enabled = false
+local farmEnabled = false
+local noclipEnabled = false
+local noclipConnection
 
 local targetNames = {
 	"FireCrateCurrency",
@@ -16,8 +18,8 @@ gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 120)
-frame.Position = UDim2.new(0.5, -130, 0.5, -60)
+frame.Size = UDim2.new(0, 280, 0, 175)
+frame.Position = UDim2.new(0.5, -140, 0.5, -87)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.Active = true
 frame.Parent = gui
@@ -27,7 +29,7 @@ corner.CornerRadius = UDim.new(0, 12)
 corner.Parent = frame
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 45)
+title.Size = UDim2.new(1, 0, 0, 40)
 title.BackgroundTransparency = 1
 title.Text = "Farm 💎 Crystal / 🍔 Burger"
 title.TextColor3 = Color3.new(1, 1, 1)
@@ -35,25 +37,83 @@ title.TextSize = 18
 title.Font = Enum.Font.GothamBold
 title.Parent = frame
 
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0.85, 0, 0, 45)
-button.Position = UDim2.new(0.075, 0, 0, 60)
-button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-button.Text = "Выключено ❎"
-button.TextColor3 = Color3.new(1, 1, 1)
-button.TextSize = 17
-button.Font = Enum.Font.GothamBold
-button.Parent = frame
+local farmButton = Instance.new("TextButton")
+farmButton.Size = UDim2.new(0.85, 0, 0, 45)
+farmButton.Position = UDim2.new(0.075, 0, 0, 45)
+farmButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+farmButton.Text = "Farm: Выключено ❎"
+farmButton.TextColor3 = Color3.new(1, 1, 1)
+farmButton.TextSize = 16
+farmButton.Font = Enum.Font.GothamBold
+farmButton.Parent = frame
 
-local buttonCorner = Instance.new("UICorner")
-buttonCorner.CornerRadius = UDim.new(0, 10)
-buttonCorner.Parent = button
+local farmCorner = Instance.new("UICorner")
+farmCorner.CornerRadius = UDim.new(0, 10)
+farmCorner.Parent = farmButton
 
-button.MouseButton1Click:Connect(function()
-	enabled = not enabled
-	button.Text = enabled and "Включено ✅" or "Выключено ❎"
+local noclipButton = Instance.new("TextButton")
+noclipButton.Size = UDim2.new(0.85, 0, 0, 45)
+noclipButton.Position = UDim2.new(0.075, 0, 0, 100)
+noclipButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+noclipButton.Text = "Noclip: Выключено ❎"
+noclipButton.TextColor3 = Color3.new(1, 1, 1)
+noclipButton.TextSize = 16
+noclipButton.Font = Enum.Font.GothamBold
+noclipButton.Parent = frame
+
+local noclipCorner = Instance.new("UICorner")
+noclipCorner.CornerRadius = UDim.new(0, 10)
+noclipCorner.Parent = noclipButton
+
+farmButton.MouseButton1Click:Connect(function()
+	farmEnabled = not farmEnabled
+	farmButton.Text = farmEnabled
+		and "Farm: Включено ✅"
+		or "Farm: Выключено ❎"
 end)
 
+local function setNoclip(state)
+	noclipEnabled = state
+
+	if noclipConnection then
+		noclipConnection:Disconnect()
+		noclipConnection = nil
+	end
+
+	if noclipEnabled then
+		noclipConnection = RunService.Stepped:Connect(function()
+			local character = player.Character
+
+			if character then
+				for _, part in ipairs(character:GetDescendants()) do
+					if part:IsA("BasePart") then
+						part.CanCollide = false
+					end
+				end
+			end
+		end)
+	else
+		local character = player.Character
+
+		if character then
+			for _, part in ipairs(character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = true
+				end
+			end
+		end
+	end
+
+	noclipButton.Text = noclipEnabled
+		and "Noclip: Включено ✅"
+		or "Noclip: Выключено ❎"
+end
+
+noclipButton.MouseButton1Click:Connect(function()
+	setNoclip(not noclipEnabled)
+end)
+
+-- Перетаскивание UI
 local dragging = false
 local dragStart
 local startPos
@@ -97,7 +157,6 @@ local function getTargets()
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if (obj:IsA("BasePart") or obj:IsA("Model"))
 			and table.find(targetNames, obj.Name) then
-
 			table.insert(targets, obj)
 		end
 	end
@@ -138,9 +197,7 @@ local function teleportWithoutTurning(character, target)
 
 	task.wait(0.7)
 
-	if connection then
-		connection:Disconnect()
-	end
+	connection:Disconnect()
 
 	if character.Parent then
 		character:PivotTo(oldCharacterCFrame)
@@ -154,14 +211,14 @@ end
 
 task.spawn(function()
 	while true do
-		if enabled then
+		if farmEnabled then
 			local character = player.Character
 
 			if character then
 				local targets = getTargets()
 
 				for _, target in ipairs(targets) do
-					if not enabled then
+					if not farmEnabled then
 						break
 					end
 
@@ -174,5 +231,11 @@ task.spawn(function()
 		end
 
 		task.wait(0.2)
+	end
+end)
+
+player.CharacterAdded:Connect(function()
+	if noclipEnabled then
+		task.wait(0.5)
 	end
 end)
