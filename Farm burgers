@@ -1,20 +1,18 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Stats = game:GetService("Stats")
 
 local player = Players.LocalPlayer
 
 local farmEnabled = false
 local ghostFlyEnabled = false
-local normalFlyEnabled = false
+local pingCheckerEnabled = false
 
 local ghostLoop
-local flyLoop
 local bodyClone
 
 local startPos
-local flySpeed = 50
-
 local originalTransparencies = {}
 
 local targetNames = {
@@ -32,8 +30,8 @@ gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0,290,0,265)
-frame.Position = UDim2.new(0.5,-145,0.5,-132)
+frame.Size = UDim2.new(0,290,0,270)
+frame.Position = UDim2.new(0.5,-145,0.5,-135)
 frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -81,24 +79,8 @@ local farmButton =
 local ghostButton =
 	createButton("👻 Ghost Fly: Выключено ❎",88)
 
-local flyButton =
-	createButton("✈️ Fly: Выключено ❎",131)
-
-local speedBox = Instance.new("TextBox")
-speedBox.Size = UDim2.new(0.85,0,0,35)
-speedBox.Position = UDim2.new(0.075,0,0,176)
-speedBox.BackgroundColor3 = Color3.fromRGB(45,45,45)
-speedBox.Text = "50"
-speedBox.PlaceholderText = "Fly Speed"
-speedBox.TextColor3 = Color3.new(1,1,1)
-speedBox.TextSize = 15
-speedBox.Font = Enum.Font.GothamBold
-speedBox.ClearTextOnFocus = false
-speedBox.Parent = frame
-
-local speedCorner = Instance.new("UICorner")
-speedCorner.CornerRadius = UDim.new(0,10)
-speedCorner.Parent = speedBox
+local pingButton =
+	createButton("📶 Ping Checker: Выключено ❎",131)
 
 local minimizeButton =
 	createButton("Свернуть ➖",220)
@@ -127,6 +109,39 @@ miniCorner.CornerRadius = UDim.new(0,12)
 miniCorner.Parent = miniFrame
 
 --==================================================
+-- PING UI
+--==================================================
+
+local pingFrame = Instance.new("Frame")
+
+pingFrame.Size = UDim2.new(0,120,0,42)
+pingFrame.Position = UDim2.new(0.5,155,0.5,-135)
+
+pingFrame.BackgroundColor3 =
+	Color3.fromRGB(25,25,25)
+
+pingFrame.BorderSizePixel = 0
+pingFrame.Active = true
+pingFrame.Visible = false
+pingFrame.Parent = gui
+
+local pingCorner = Instance.new("UICorner")
+pingCorner.CornerRadius = UDim.new(0,10)
+pingCorner.Parent = pingFrame
+
+local pingLabel = Instance.new("TextLabel")
+
+pingLabel.Size = UDim2.new(1,0,1,0)
+pingLabel.BackgroundTransparency = 1
+
+pingLabel.Text = "Ping: -- ms"
+pingLabel.TextColor3 = Color3.new(1,1,1)
+pingLabel.TextSize = 16
+pingLabel.Font = Enum.Font.GothamBold
+
+pingLabel.Parent = pingFrame
+
+--==================================================
 -- FARM
 --==================================================
 
@@ -142,8 +157,66 @@ farmButton.MouseButton1Click:Connect(function()
 end)
 
 --==================================================
+-- PING CHECKER
+--==================================================
+
+local function getPing()
+
+	local success, result = pcall(function()
+		return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+	end)
+
+	if success and typeof(result) == "number" then
+		return math.floor(result + 0.5)
+	end
+
+	return nil
+end
+
+pingButton.MouseButton1Click:Connect(function()
+
+	pingCheckerEnabled =
+		not pingCheckerEnabled
+
+	if pingCheckerEnabled then
+
+		pingButton.Text =
+			"📶 Ping Checker: Включено ✅"
+
+		pingFrame.Visible = true
+
+	else
+
+		pingButton.Text =
+			"📶 Ping Checker: Выключено ❎"
+
+		pingFrame.Visible = false
+	end
+end)
+
+task.spawn(function()
+
+	while true do
+
+		if pingCheckerEnabled then
+
+			local ping = getPing()
+
+			if ping then
+				pingLabel.Text =
+					"Ping: " .. ping .. " ms"
+			else
+				pingLabel.Text =
+					"Ping: -- ms"
+			end
+		end
+
+		task.wait(0.25)
+	end
+end)
+
+--==================================================
 -- GHOST TRANSPARENCY
--- НЕ МЕНЯЕМ
 --==================================================
 
 local function setGhostMode(state)
@@ -190,7 +263,6 @@ end
 
 --==================================================
 -- GHOST FLY
--- ТВОЯ РАБОЧАЯ ВЕРСИЯ
 --==================================================
 
 local function startGhostFly()
@@ -266,7 +338,7 @@ local function startGhostFly()
 
 			local moveDirection =
 				humanoid.MoveDirection
-				* (flySpeed * deltaTime)
+				* (50 * deltaTime)
 
 			local headCFrame = head.CFrame
 			local camera = workspace.CurrentCamera
@@ -353,155 +425,10 @@ local function stopGhostFly()
 end
 
 --==================================================
--- NORMAL FLY
--- НА ОСНОВЕ ТВОЕГО РАБОЧЕГО FLY
---==================================================
-
-local function startNormalFly()
-
-	local character = player.Character
-
-	if not character then
-		return
-	end
-
-	local humanoid =
-		character:FindFirstChildOfClass("Humanoid")
-
-	local hrp =
-		character:FindFirstChild("HumanoidRootPart")
-
-	if not humanoid or not hrp then
-		return
-	end
-
-	humanoid.PlatformStand = true
-
-	if flyLoop then
-		flyLoop:Disconnect()
-	end
-
-	flyLoop =
-		RunService.Heartbeat:Connect(function()
-
-			if not normalFlyEnabled then
-				return
-			end
-
-			if not character.Parent then
-				return
-			end
-
-			local camera =
-				workspace.CurrentCamera
-
-			-- Джойстик Roblox
-			local moveDirection =
-				humanoid.MoveDirection
-
-			local cameraDirection =
-				camera.CFrame.LookVector
-
-			-- Если игрок двигается
-			if moveDirection.Magnitude > 0.05 then
-
-				-- Направление джойстика
-				local direction =
-					moveDirection.Unit
-
-				-- Вертикальная часть камеры
-				local vertical =
-					cameraDirection.Y
-
-				local velocity =
-					Vector3.new(
-						direction.X,
-						vertical,
-						direction.Z
-					)
-
-				if velocity.Magnitude > 0 then
-					velocity =
-						velocity.Unit
-				end
-
-				hrp.AssemblyLinearVelocity =
-					velocity * flySpeed
-
-			else
-
-				hrp.AssemblyLinearVelocity =
-					Vector3.zero
-			end
-
-			-- Поворачиваем персонажа
-			-- вслед за камерой
-			local horizontalCamera =
-				Vector3.new(
-					cameraDirection.X,
-					0,
-					cameraDirection.Z
-				)
-
-			if horizontalCamera.Magnitude > 0.01 then
-
-				hrp.CFrame =
-					CFrame.new(
-						hrp.Position,
-						hrp.Position +
-							horizontalCamera.Unit
-					)
-			end
-
-		end)
-end
-
-local function stopNormalFly()
-
-	if flyLoop then
-		flyLoop:Disconnect()
-		flyLoop = nil
-	end
-
-	local character =
-		player.Character
-
-	if character then
-
-		local humanoid =
-			character:FindFirstChildOfClass("Humanoid")
-
-		local hrp =
-			character:FindFirstChild("HumanoidRootPart")
-
-		if humanoid then
-			humanoid.PlatformStand = false
-		end
-
-		if hrp then
-			hrp.AssemblyLinearVelocity =
-				Vector3.zero
-
-			hrp.Anchored = false
-		end
-	end
-end
-
---==================================================
 -- GHOST BUTTON
 --==================================================
 
 ghostButton.MouseButton1Click:Connect(function()
-
-	if normalFlyEnabled then
-
-		normalFlyEnabled = false
-
-		stopNormalFly()
-
-		flyButton.Text =
-			"✈️ Fly: Выключено ❎"
-	end
 
 	ghostFlyEnabled =
 		not ghostFlyEnabled
@@ -519,65 +446,6 @@ ghostButton.MouseButton1Click:Connect(function()
 
 		ghostButton.Text =
 			"👻 Ghost Fly: Выключено ❎"
-	end
-end)
-
---==================================================
--- NORMAL FLY BUTTON
---==================================================
-
-flyButton.MouseButton1Click:Connect(function()
-
-	if ghostFlyEnabled then
-
-		ghostFlyEnabled = false
-
-		stopGhostFly()
-
-		ghostButton.Text =
-			"👻 Ghost Fly: Выключено ❎"
-	end
-
-	normalFlyEnabled =
-		not normalFlyEnabled
-
-	if normalFlyEnabled then
-
-		flySpeed =
-			tonumber(speedBox.Text)
-			or 50
-
-		startNormalFly()
-
-		flyButton.Text =
-			"✈️ Fly: Включено ✅"
-
-	else
-
-		stopNormalFly()
-
-		flyButton.Text =
-			"✈️ Fly: Выключено ❎"
-	end
-end)
-
---==================================================
--- SPEED
---==================================================
-
-speedBox.FocusLost:Connect(function()
-
-	local value =
-		tonumber(speedBox.Text)
-
-	if value and value > 0 then
-
-		flySpeed = value
-
-	else
-
-		speedBox.Text =
-			tostring(flySpeed)
 	end
 end)
 
@@ -705,6 +573,59 @@ UserInputService.InputChanged:Connect(function(input)
 
 				miniStartPos.Y.Scale,
 				miniStartPos.Y.Offset + delta.Y
+			)
+	end
+end)
+
+--==================================================
+-- DRAG PING UI
+--==================================================
+
+local pingDragging = false
+local pingDragStart
+local pingStartPos
+
+pingFrame.InputBegan:Connect(function(input)
+
+	if input.UserInputType ==
+		Enum.UserInputType.MouseButton1
+		or input.UserInputType ==
+		Enum.UserInputType.Touch then
+
+		pingDragging = true
+		pingDragStart = input.Position
+		pingStartPos = pingFrame.Position
+
+		input.Changed:Connect(function()
+
+			if input.UserInputState ==
+				Enum.UserInputState.End then
+
+				pingDragging = false
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+
+	if pingDragging and (
+		input.UserInputType ==
+		Enum.UserInputType.MouseMovement
+		or input.UserInputType ==
+		Enum.UserInputType.Touch
+	) then
+
+		local delta =
+			input.Position - pingDragStart
+
+		pingFrame.Position =
+			UDim2.new(
+				pingStartPos.X.Scale,
+				pingStartPos.X.Offset + delta.X,
+
+				pingStartPos.Y.Scale,
+				pingStartPos.Y.Offset + delta.Y
 			)
 	end
 end)
@@ -880,11 +801,6 @@ player.CharacterAdded:Connect(function()
 		ghostLoop = nil
 	end
 
-	if flyLoop then
-		flyLoop:Disconnect()
-		flyLoop = nil
-	end
-
 	if bodyClone then
 		bodyClone:Destroy()
 		bodyClone = nil
@@ -893,11 +809,6 @@ player.CharacterAdded:Connect(function()
 	task.wait(1)
 
 	if ghostFlyEnabled then
-
 		startGhostFly()
-
-	elseif normalFlyEnabled then
-
-		startNormalFly()
 	end
 end)
