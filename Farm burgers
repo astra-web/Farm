@@ -32,8 +32,8 @@ gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0,290,0,240)
-frame.Position = UDim2.new(0.5,-145,0.5,-120)
+frame.Size = UDim2.new(0,290,0,265)
+frame.Position = UDim2.new(0.5,-145,0.5,-132)
 frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -85,28 +85,23 @@ local flyButton =
 	createButton("✈️ Fly: Выключено ❎",131)
 
 local speedBox = Instance.new("TextBox")
-
 speedBox.Size = UDim2.new(0.85,0,0,35)
 speedBox.Position = UDim2.new(0.075,0,0,176)
-
-speedBox.BackgroundColor3 =
-	Color3.fromRGB(45,45,45)
-
+speedBox.BackgroundColor3 = Color3.fromRGB(45,45,45)
 speedBox.Text = "50"
 speedBox.PlaceholderText = "Fly Speed"
-
-speedBox.TextColor3 =
-	Color3.new(1,1,1)
-
+speedBox.TextColor3 = Color3.new(1,1,1)
 speedBox.TextSize = 15
 speedBox.Font = Enum.Font.GothamBold
-
 speedBox.ClearTextOnFocus = false
 speedBox.Parent = frame
 
 local speedCorner = Instance.new("UICorner")
 speedCorner.CornerRadius = UDim.new(0,10)
 speedCorner.Parent = speedBox
+
+local minimizeButton =
+	createButton("Свернуть ➖",220)
 
 --==================================================
 -- MINI UI
@@ -117,14 +112,9 @@ local miniFrame = Instance.new("TextButton")
 miniFrame.Size = UDim2.new(0,120,0,38)
 miniFrame.Position = frame.Position
 
-miniFrame.BackgroundColor3 =
-	Color3.fromRGB(25,25,25)
-
+miniFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 miniFrame.Text = "☰ Farm"
-
-miniFrame.TextColor3 =
-	Color3.new(1,1,1)
-
+miniFrame.TextColor3 = Color3.new(1,1,1)
 miniFrame.TextSize = 15
 miniFrame.Font = Enum.Font.GothamBold
 
@@ -152,8 +142,8 @@ farmButton.MouseButton1Click:Connect(function()
 end)
 
 --==================================================
--- GHOST MODE
--- НЕ МЕНЯЛ
+-- GHOST TRANSPARENCY
+-- НЕ МЕНЯЕМ
 --==================================================
 
 local function setGhostMode(state)
@@ -200,7 +190,7 @@ end
 
 --==================================================
 -- GHOST FLY
--- НЕ МЕНЯЛ
+-- ТВОЯ РАБОЧАЯ ВЕРСИЯ
 --==================================================
 
 local function startGhostFly()
@@ -240,6 +230,7 @@ local function startGhostFly()
 	) do
 
 		if object:IsA("BasePart") then
+
 			object.Anchored = true
 			object.CanCollide = false
 
@@ -316,6 +307,7 @@ local function startGhostFly()
 				CFrame.new(headPosition)
 				* (cameraCFrame-cameraPosition)
 				* CFrame.new(objectSpaceVelocity)
+
 		end)
 end
 
@@ -362,7 +354,7 @@ end
 
 --==================================================
 -- NORMAL FLY
--- ТОЛЬКО ЭТО НОВОЕ
+-- НА ОСНОВЕ ТВОЕГО РАБОЧЕГО FLY
 --==================================================
 
 local function startNormalFly()
@@ -383,41 +375,6 @@ local function startNormalFly()
 		return
 	end
 
-	local bodyVelocity =
-		Instance.new("BodyVelocity")
-
-	bodyVelocity.Name =
-		"AstraMobileFlyVelocity"
-
-	bodyVelocity.MaxForce =
-		Vector3.new(
-			9e9,
-			9e9,
-			9e9
-		)
-
-	bodyVelocity.Velocity =
-		Vector3.zero
-
-	bodyVelocity.Parent = hrp
-
-	local bodyGyro =
-		Instance.new("BodyGyro")
-
-	bodyGyro.Name =
-		"AstraMobileFlyGyro"
-
-	bodyGyro.MaxTorque =
-		Vector3.new(
-			9e9,
-			9e9,
-			9e9
-		)
-
-	bodyGyro.P = 9e4
-	bodyGyro.CFrame = hrp.CFrame
-	bodyGyro.Parent = hrp
-
 	humanoid.PlatformStand = true
 
 	if flyLoop then
@@ -425,7 +382,7 @@ local function startNormalFly()
 	end
 
 	flyLoop =
-		RunService.RenderStepped:Connect(function()
+		RunService.Heartbeat:Connect(function()
 
 			if not normalFlyEnabled then
 				return
@@ -438,62 +395,64 @@ local function startNormalFly()
 			local camera =
 				workspace.CurrentCamera
 
-			-- Берём направление прямо из
-			-- рабочего Ghost Fly
+			-- Джойстик Roblox
 			local moveDirection =
 				humanoid.MoveDirection
 
-			local cameraLook =
+			local cameraDirection =
 				camera.CFrame.LookVector
 
-			-- Джойстик даёт горизонтальное
-			-- направление.
-			local horizontal =
-				Vector3.new(
-					moveDirection.X,
-					0,
-					moveDirection.Z
-				)
+			-- Если игрок двигается
+			if moveDirection.Magnitude > 0.05 then
 
-			local velocity =
-				Vector3.zero
+				-- Направление джойстика
+				local direction =
+					moveDirection.Unit
 
-			if horizontal.Magnitude > 0.05 then
-				velocity =
-					horizontal.Unit *
-					flySpeed
+				-- Вертикальная часть камеры
+				local vertical =
+					cameraDirection.Y
+
+				local velocity =
+					Vector3.new(
+						direction.X,
+						vertical,
+						direction.Z
+					)
+
+				if velocity.Magnitude > 0 then
+					velocity =
+						velocity.Unit
+				end
+
+				hrp.AssemblyLinearVelocity =
+					velocity * flySpeed
+
+			else
+
+				hrp.AssemblyLinearVelocity =
+					Vector3.zero
 			end
-
-			-- Наклон камеры вверх/вниз
-			-- добавляет вертикальное движение.
-			velocity +=
-				Vector3.new(
-					0,
-					cameraLook.Y * flySpeed,
-					0
-				)
-
-			bodyVelocity.Velocity =
-				velocity
 
 			-- Поворачиваем персонажа
-			-- вслед за камерой.
-			local look =
+			-- вслед за камерой
+			local horizontalCamera =
 				Vector3.new(
-					cameraLook.X,
+					cameraDirection.X,
 					0,
-					cameraLook.Z
+					cameraDirection.Z
 				)
 
-			if look.Magnitude > 0.01 then
+			if horizontalCamera.Magnitude > 0.01 then
 
-				bodyGyro.CFrame =
-					CFrame.lookAt(
+				hrp.CFrame =
+					CFrame.new(
 						hrp.Position,
 						hrp.Position +
-							look.Unit
+							horizontalCamera.Unit
 					)
 			end
+
 		end)
 end
 
@@ -513,33 +472,17 @@ local function stopNormalFly()
 			character:FindFirstChildOfClass("Humanoid")
 
 		local hrp =
-			character:FindFirstChild(
-				"HumanoidRootPart"
-			)
+			character:FindFirstChild("HumanoidRootPart")
 
 		if humanoid then
 			humanoid.PlatformStand = false
 		end
 
 		if hrp then
+			hrp.AssemblyLinearVelocity =
+				Vector3.zero
 
-			local velocity =
-				hrp:FindFirstChild(
-					"AstraMobileFlyVelocity"
-				)
-
-			local gyro =
-				hrp:FindFirstChild(
-					"AstraMobileFlyGyro"
-				)
-
-			if velocity then
-				velocity:Destroy()
-			end
-
-			if gyro then
-				gyro:Destroy()
-			end
+			hrp.Anchored = false
 		end
 	end
 end
@@ -624,24 +567,27 @@ end)
 
 speedBox.FocusLost:Connect(function()
 
-	local num =
+	local value =
 		tonumber(speedBox.Text)
 
-	if num and num > 0 then
-		flySpeed = num
+	if value and value > 0 then
+
+		flySpeed = value
+
 	else
+
 		speedBox.Text =
 			tostring(flySpeed)
 	end
 end)
 
 --==================================================
--- DRAG UI
+-- DRAG MAIN UI
 --==================================================
 
 local dragging = false
 local dragStart
-local startPosition
+local startPosUI
 
 frame.InputBegan:Connect(function(input)
 
@@ -652,7 +598,7 @@ frame.InputBegan:Connect(function(input)
 
 		dragging = true
 		dragStart = input.Position
-		startPosition = frame.Position
+		startPosUI = frame.Position
 
 		input.Changed:Connect(function()
 
@@ -679,11 +625,11 @@ UserInputService.InputChanged:Connect(function(input)
 
 		frame.Position =
 			UDim2.new(
-				startPosition.X.Scale,
-				startPosition.X.Offset + delta.X,
+				startPosUI.X.Scale,
+				startPosUI.X.Offset + delta.X,
 
-				startPosition.Y.Scale,
-				startPosition.Y.Offset + delta.Y
+				startPosUI.Y.Scale,
+				startPosUI.Y.Offset + delta.Y
 			)
 	end
 end)
@@ -692,28 +638,7 @@ end)
 -- MINIMIZE
 --==================================================
 
-local minimizeButton = Instance.new("TextButton")
-
-minimizeButton.Size =
-	UDim2.new(0,0,0,0)
-
-minimizeButton.Parent = frame
-
--- Кнопка свернуть уже создаётся ниже,
--- чтобы не занимать место в основном UI.
-
-local collapse = Instance.new("TextButton")
-collapse.Size = UDim2.new(.85,0,0,38)
-collapse.Position = UDim2.new(.075,0,0,220)
-collapse.BackgroundColor3 = Color3.fromRGB(45,45,45)
-collapse.Text = "Свернуть ➖"
-collapse.TextColor3 = Color3.new(1,1,1)
-collapse.TextSize = 15
-collapse.Font = Enum.Font.GothamBold
-collapse.Parent = frame
-Instance.new("UICorner",collapse).CornerRadius = UDim.new(0,10)
-
-collapse.MouseButton1Click:Connect(function()
+minimizeButton.MouseButton1Click:Connect(function()
 
 	miniFrame.Position =
 		frame.Position
@@ -732,7 +657,7 @@ miniFrame.MouseButton1Click:Connect(function()
 end)
 
 --==================================================
--- MINI DRAG
+-- DRAG MINI
 --==================================================
 
 local miniDragging = false
@@ -816,7 +741,7 @@ local function getTargets()
 end
 
 --==================================================
--- TELEPORT
+-- TELEPORT WITHOUT TURNING
 --==================================================
 
 local function teleportWithoutTurning(
@@ -968,10 +893,11 @@ player.CharacterAdded:Connect(function()
 	task.wait(1)
 
 	if ghostFlyEnabled then
+
 		startGhostFly()
 
 	elseif normalFlyEnabled then
+
 		startNormalFly()
 	end
 end)
-		
