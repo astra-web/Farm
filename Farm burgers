@@ -15,6 +15,7 @@ local startPos
 local bodyClone
 
 local CFspeed = 1
+
 local originalTransparencies = {}
 local originalCollisions = {}
 
@@ -24,6 +25,7 @@ local targetNames = {
 }
 
 -- GUI
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "FarmUI"
 gui.ResetOnSpawn = false
@@ -88,18 +90,40 @@ local speedCorner = Instance.new("UICorner")
 speedCorner.CornerRadius = UDim.new(0, 10)
 speedCorner.Parent = speedBox
 
-local closeButton = createButton("Закрыть ❌", 224)
+local minimizeButton = createButton("Свернуть ➖", 224)
+
+-- Мини-окно
+
+local miniFrame = Instance.new("TextButton")
+miniFrame.Size = UDim2.new(0, 120, 0, 38)
+miniFrame.Position = frame.Position
+miniFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+miniFrame.Text = "☰ Farm"
+miniFrame.TextColor3 = Color3.new(1, 1, 1)
+miniFrame.TextSize = 15
+miniFrame.Font = Enum.Font.GothamBold
+miniFrame.Visible = false
+miniFrame.Active = true
+miniFrame.Parent = gui
+
+local miniCorner = Instance.new("UICorner")
+miniCorner.CornerRadius = UDim.new(0, 12)
+miniCorner.Parent = miniFrame
 
 -- FARM
+
 farmButton.MouseButton1Click:Connect(function()
 	farmEnabled = not farmEnabled
 
-	farmButton.Text = farmEnabled
-		and "Farm: Включено ✅"
-		or "Farm: Выключено ❎"
+	if farmEnabled then
+		farmButton.Text = "Farm: Включено ✅"
+	else
+		farmButton.Text = "Farm: Выключено ❎"
+	end
 end)
 
 -- GHOST TRANSPARENCY
+
 local function setGhostMode(state)
 	local character = player.Character
 
@@ -111,6 +135,7 @@ local function setGhostMode(state)
 		for _, part in ipairs(character:GetDescendants()) do
 			if part:IsA("BasePart") or part:IsA("Decal") then
 				if part.Name ~= "HumanoidRootPart" then
+
 					if originalTransparencies[part] == nil then
 						originalTransparencies[part] = part.Transparency
 					end
@@ -131,6 +156,7 @@ local function setGhostMode(state)
 end
 
 -- GHOST FLY
+
 local function startGhostFly()
 	local character = player.Character
 
@@ -158,10 +184,13 @@ local function startGhostFly()
 	bodyClone.Name = "GhostFlyVessel"
 
 	for _, object in ipairs(bodyClone:GetDescendants()) do
+
 		if object:IsA("BasePart") then
 			object.Anchored = true
 			object.CanCollide = false
-		elseif object:IsA("Script") or object:IsA("LocalScript") then
+
+		elseif object:IsA("Script")
+			or object:IsA("LocalScript") then
 			object:Destroy()
 		end
 	end
@@ -179,12 +208,14 @@ local function startGhostFly()
 	end
 
 	ghostLoop = RunService.Heartbeat:Connect(function(deltaTime)
+
 		if not ghostFlyEnabled or not character.Parent then
 			return
 		end
 
 		local moveDirection =
-			humanoid.MoveDirection * (CFspeed * deltaTime * 60)
+			humanoid.MoveDirection
+			* (CFspeed * deltaTime * 60)
 
 		local headCFrame = head.CFrame
 		local camera = workspace.CurrentCamera
@@ -230,9 +261,15 @@ local function stopGhostFly()
 	end
 
 	if character then
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		local head = character:FindFirstChild("Head")
-		local hrp = character:FindFirstChild("HumanoidRootPart")
+
+		local humanoid =
+			character:FindFirstChildOfClass("Humanoid")
+
+		local head =
+			character:FindFirstChild("Head")
+
+		local hrp =
+			character:FindFirstChild("HumanoidRootPart")
 
 		if humanoid then
 			humanoid.PlatformStand = false
@@ -255,35 +292,7 @@ local function stopGhostFly()
 	end
 end
 
--- NORMAL FLY
-local function setNormalFlyCollision(state)
-	local character = player.Character
-
-	if not character then
-		return
-	end
-
-	for _, part in ipairs(character:GetDescendants()) do
-		if part:IsA("BasePart") then
-
-			if state then
-				if originalCollisions[part] == nil then
-					originalCollisions[part] = part.CanCollide
-				end
-
-				part.CanCollide = false
-			else
-				if originalCollisions[part] ~= nil then
-					part.CanCollide = originalCollisions[part]
-				end
-			end
-		end
-	end
-
-	if not state then
-		table.clear(originalCollisions)
-	end
-end
+-- NORMAL FLY TRANSPARENCY
 
 local function setNormalFlyTransparency(state)
 	local character = player.Character
@@ -293,17 +302,22 @@ local function setNormalFlyTransparency(state)
 	end
 
 	for _, object in ipairs(character:GetDescendants()) do
+
 		if object:IsA("BasePart") or object:IsA("Decal") then
 
 			if state then
+
 				if originalTransparencies[object] == nil then
-					originalTransparencies[object] = object.Transparency
+					originalTransparencies[object] =
+						object.Transparency
 				end
 
 				if object.Name ~= "HumanoidRootPart" then
 					object.Transparency = 0.5
 				end
+
 			else
+
 				if originalTransparencies[object] ~= nil then
 					object.Transparency =
 						originalTransparencies[object]
@@ -317,6 +331,45 @@ local function setNormalFlyTransparency(state)
 	end
 end
 
+-- NORMAL FLY NOCLIP
+
+local function setNormalFlyCollision(state)
+	local character = player.Character
+
+	if not character then
+		return
+	end
+
+	for _, part in ipairs(character:GetDescendants()) do
+
+		if part:IsA("BasePart") then
+
+			if state then
+
+				if originalCollisions[part] == nil then
+					originalCollisions[part] =
+						part.CanCollide
+				end
+
+				part.CanCollide = false
+
+			else
+
+				if originalCollisions[part] ~= nil then
+					part.CanCollide =
+						originalCollisions[part]
+				end
+			end
+		end
+	end
+
+	if not state then
+		table.clear(originalCollisions)
+	end
+end
+
+-- NORMAL FLY
+
 local function startNormalFly()
 	local character = player.Character
 
@@ -324,8 +377,11 @@ local function startNormalFly()
 		return
 	end
 
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local humanoid =
+		character:FindFirstChildOfClass("Humanoid")
+
+	local hrp =
+		character:FindFirstChild("HumanoidRootPart")
 
 	if not humanoid or not hrp then
 		return
@@ -336,43 +392,114 @@ local function startNormalFly()
 	setNormalFlyCollision(true)
 	setNormalFlyTransparency(true)
 
+	local velocity =
+		hrp:FindFirstChild("FlyVelocity")
+
+	if velocity then
+		velocity:Destroy()
+	end
+
+	velocity = Instance.new("BodyVelocity")
+	velocity.Name = "FlyVelocity"
+	velocity.MaxForce =
+		Vector3.new(math.huge, math.huge, math.huge)
+	velocity.P = 12500
+	velocity.Velocity = Vector3.zero
+	velocity.Parent = hrp
+
 	if normalLoop then
 		normalLoop:Disconnect()
 	end
 
-	normalLoop = RunService.RenderStepped:Connect(function(deltaTime)
-		if not normalFlyEnabled or not character.Parent then
-			return
-		end
+	normalLoop =
+		RunService.RenderStepped:Connect(function()
 
-		local camera = workspace.CurrentCamera
-		local moveDirection = humanoid.MoveDirection
+			if not normalFlyEnabled or not character.Parent then
+				return
+			end
 
-		if moveDirection.Magnitude > 0 then
-			local cameraLook = camera.CFrame.LookVector
-			local cameraRight = camera.CFrame.RightVector
+			for _, part in ipairs(character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = false
+				end
+			end
 
-			local movement =
-				(cameraRight * moveDirection.X)
-				+ (cameraLook * moveDirection.Z)
+			local camera =
+				workspace.CurrentCamera
 
-			if movement.Magnitude > 0 then
-				movement = movement.Unit
+			local moveDirection =
+				humanoid.MoveDirection
 
-				local speed =
-					CFspeed * 16 * deltaTime
+			local finalVelocity = Vector3.zero
 
-				local newPosition =
-					hrp.Position + movement * speed
+			if moveDirection.Magnitude > 0 then
 
-				hrp.CFrame =
-					CFrame.lookAt(
-						newPosition,
-						newPosition + cameraLook
+				local cameraLook =
+					camera.CFrame.LookVector
+
+				local cameraRight =
+					camera.CFrame.RightVector
+
+				local forward =
+					Vector3.new(
+						cameraLook.X,
+						0,
+						cameraLook.Z
+					)
+
+				local right =
+					Vector3.new(
+						cameraRight.X,
+						0,
+						cameraRight.Z
+					)
+
+				if forward.Magnitude > 0 then
+					forward = forward.Unit
+				end
+
+				if right.Magnitude > 0 then
+					right = right.Unit
+				end
+
+				local direction =
+					right * moveDirection.X
+					+ forward * -moveDirection.Z
+
+				if direction.Magnitude > 0 then
+					direction = direction.Unit
+
+					finalVelocity =
+						direction * (CFspeed * 50)
+				end
+			end
+
+			if UserInputService:IsKeyDown(
+				Enum.KeyCode.Space
+			) then
+
+				finalVelocity +=
+					Vector3.new(
+						0,
+						CFspeed * 50,
+						0
 					)
 			end
-		end
-	end)
+
+			if UserInputService:IsKeyDown(
+				Enum.KeyCode.LeftControl
+			) then
+
+				finalVelocity +=
+					Vector3.new(
+						0,
+						-CFspeed * 50,
+						0
+					)
+			end
+
+			velocity.Velocity = finalVelocity
+		end)
 end
 
 local function stopNormalFly()
@@ -384,11 +511,25 @@ local function stopNormalFly()
 	end
 
 	if character then
+
 		local humanoid =
 			character:FindFirstChildOfClass("Humanoid")
 
+		local hrp =
+			character:FindFirstChild("HumanoidRootPart")
+
 		if humanoid then
 			humanoid.PlatformStand = false
+		end
+
+		if hrp then
+
+			local velocity =
+				hrp:FindFirstChild("FlyVelocity")
+
+			if velocity then
+				velocity:Destroy()
+			end
 		end
 	end
 
@@ -397,71 +538,103 @@ local function stopNormalFly()
 end
 
 -- GHOST BUTTON
+
 ghostButton.MouseButton1Click:Connect(function()
 
 	if normalFlyEnabled then
 		normalFlyEnabled = false
+
 		stopNormalFly()
-		flyButton.Text = "✈️ Fly: Выключено ❎"
+
+		flyButton.Text =
+			"✈️ Fly: Выключено ❎"
 	end
 
-	ghostFlyEnabled = not ghostFlyEnabled
+	ghostFlyEnabled =
+		not ghostFlyEnabled
 
 	if ghostFlyEnabled then
+
 		startGhostFly()
-		ghostButton.Text = "👻 Ghost Fly: Включено ✅"
+
+		ghostButton.Text =
+			"👻 Ghost Fly: Включено ✅"
+
 	else
+
 		stopGhostFly()
-		ghostButton.Text = "👻 Ghost Fly: Выключено ❎"
+
+		ghostButton.Text =
+			"👻 Ghost Fly: Выключено ❎"
 	end
 end)
 
 -- NORMAL FLY BUTTON
+
 flyButton.MouseButton1Click:Connect(function()
 
 	if ghostFlyEnabled then
 		ghostFlyEnabled = false
+
 		stopGhostFly()
-		ghostButton.Text = "👻 Ghost Fly: Выключено ❎"
+
+		ghostButton.Text =
+			"👻 Ghost Fly: Выключено ❎"
 	end
 
-	normalFlyEnabled = not normalFlyEnabled
+	normalFlyEnabled =
+		not normalFlyEnabled
 
 	if normalFlyEnabled then
-		local speed = tonumber(speedBox.Text)
 
-		if speed then
+		local speed =
+			tonumber(speedBox.Text)
+
+		if speed and speed > 0 then
 			CFspeed = speed
 		end
 
 		startNormalFly()
-		flyButton.Text = "✈️ Fly: Включено ✅"
+
+		flyButton.Text =
+			"✈️ Fly: Включено ✅"
+
 	else
+
 		stopNormalFly()
-		flyButton.Text = "✈️ Fly: Выключено ❎"
+
+		flyButton.Text =
+			"✈️ Fly: Выключено ❎"
 	end
 end)
 
 -- SPEED
+
 speedBox.FocusLost:Connect(function()
-	local speed = tonumber(speedBox.Text)
+
+	local speed =
+		tonumber(speedBox.Text)
 
 	if speed and speed > 0 then
 		CFspeed = speed
 	else
-		speedBox.Text = tostring(CFspeed)
+		speedBox.Text =
+			tostring(CFspeed)
 	end
 end)
 
--- DRAG UI
+-- DRAG MAIN UI
+
 local dragging = false
 local dragStart
 local startPosUI
 
 frame.InputBegan:Connect(function(input)
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
+	if input.UserInputType ==
+		Enum.UserInputType.MouseButton1
+		or input.UserInputType ==
+		Enum.UserInputType.Touch then
 
 		dragging = true
 		dragStart = input.Position
@@ -469,62 +642,156 @@ frame.InputBegan:Connect(function(input)
 
 		input.Changed:Connect(function()
 
-			if input.UserInputState == Enum.UserInputState.End then
+			if input.UserInputState ==
+				Enum.UserInputState.End then
+
 				dragging = false
 			end
-
 		end)
 	end
-
 end)
 
 UserInputService.InputChanged:Connect(function(input)
 
 	if dragging and (
-		input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch
+		input.UserInputType ==
+			Enum.UserInputType.MouseMovement
+		or input.UserInputType ==
+			Enum.UserInputType.Touch
 	) then
 
 		local delta =
 			input.Position - dragStart
 
-		frame.Position = UDim2.new(
-			startPosUI.X.Scale,
-			startPosUI.X.Offset + delta.X,
+		frame.Position =
+			UDim2.new(
+				startPosUI.X.Scale,
+				startPosUI.X.Offset + delta.X,
 
-			startPosUI.Y.Scale,
-			startPosUI.Y.Offset + delta.Y
-		)
+				startPosUI.Y.Scale,
+				startPosUI.Y.Offset + delta.Y
+			)
 	end
+end)
 
+-- СВЕРНУТЬ
+
+local minimized = false
+
+minimizeButton.MouseButton1Click:Connect(function()
+
+	minimized = true
+
+	miniFrame.Position = frame.Position
+
+	frame.Visible = false
+	miniFrame.Visible = true
+end)
+
+miniFrame.MouseButton1Click:Connect(function()
+
+	minimized = false
+
+	frame.Position = miniFrame.Position
+
+	frame.Visible = true
+	miniFrame.Visible = false
+end)
+
+-- DRAG MINI UI
+
+local miniDragging = false
+local miniDragStart
+local miniStartPos
+
+miniFrame.InputBegan:Connect(function(input)
+
+	if input.UserInputType ==
+		Enum.UserInputType.MouseButton1
+		or input.UserInputType ==
+		Enum.UserInputType.Touch then
+
+		miniDragging = true
+		miniDragStart = input.Position
+		miniStartPos = miniFrame.Position
+
+		input.Changed:Connect(function()
+
+			if input.UserInputState ==
+				Enum.UserInputState.End then
+
+				miniDragging = false
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+
+	if miniDragging and (
+		input.UserInputType ==
+			Enum.UserInputType.MouseMovement
+		or input.UserInputType ==
+			Enum.UserInputType.Touch
+	) then
+
+		local delta =
+			input.Position - miniDragStart
+
+		miniFrame.Position =
+			UDim2.new(
+				miniStartPos.X.Scale,
+				miniStartPos.X.Offset + delta.X,
+
+				miniStartPos.Y.Scale,
+				miniStartPos.Y.Offset + delta.Y
+			)
+	end
 end)
 
 -- TARGETS
+
 local function getTargets()
+
 	local targets = {}
 
-	for _, object in ipairs(workspace:GetDescendants()) do
+	for _, object in ipairs(
+		workspace:GetDescendants()
+	) do
 
-		if (object:IsA("BasePart")
-			or object:IsA("Model"))
-			and table.find(targetNames, object.Name) then
+		if (
+			object:IsA("BasePart")
+			or object:IsA("Model")
+		)
+		and table.find(
+			targetNames,
+			object.Name
+		) then
 
-			table.insert(targets, object)
+			table.insert(
+				targets,
+				object
+			)
 		end
-
 	end
 
 	return targets
 end
 
 -- TELEPORT WITHOUT TURNING
-local function teleportWithoutTurning(character, target)
+
+local function teleportWithoutTurning(
+	character,
+	target
+)
 
 	local camera =
 		workspace.CurrentCamera
 
 	local humanoid =
-		character:FindFirstChildOfClass("Humanoid")
+		character:FindFirstChildOfClass(
+			"Humanoid"
+		)
 
 	if not humanoid then
 		return
@@ -553,8 +820,8 @@ local function teleportWithoutTurning(character, target)
 
 	character:PivotTo(
 		CFrame.new(
-			targetPosition
-			+ Vector3.new(0, 4, 0)
+			targetPosition +
+				Vector3.new(0, 4, 0)
 		)
 		* rotationOnly
 	)
@@ -566,14 +833,15 @@ local function teleportWithoutTurning(character, target)
 		oldCameraCFrame
 
 	local connection =
-		RunService.RenderStepped:Connect(function()
+		RunService.RenderStepped:Connect(
+			function()
 
-			if camera and camera.Parent then
-				camera.CFrame =
-					oldCameraCFrame
+				if camera and camera.Parent then
+					camera.CFrame =
+						oldCameraCFrame
+				end
 			end
-
-		end)
+		)
 
 	task.wait(0.7)
 
@@ -597,6 +865,7 @@ local function teleportWithoutTurning(character, target)
 end
 
 -- FARM LOOP
+
 task.spawn(function()
 
 	while true do
@@ -632,25 +901,10 @@ task.spawn(function()
 
 		task.wait(0.2)
 	end
-
-end)
-
--- CLOSE
-closeButton.MouseButton1Click:Connect(function()
-
-	farmEnabled = false
-
-	ghostFlyEnabled = false
-	normalFlyEnabled = false
-
-	stopGhostFly()
-	stopNormalFly()
-
-	gui:Destroy()
-
 end)
 
 -- RESPAWN
+
 player.CharacterAdded:Connect(function()
 
 	if ghostLoop then
@@ -675,5 +929,4 @@ player.CharacterAdded:Connect(function()
 	elseif normalFlyEnabled then
 		startNormalFly()
 	end
-
 end)
