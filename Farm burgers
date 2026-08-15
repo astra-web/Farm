@@ -3,24 +3,34 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
+
 local farmEnabled = false
 local noclipEnabled = false
+local flying = false
+
 local noclipConnection
+local CFloop
+local startPos
+local bodyClone
+local CFspeed = 1
+local originalTransparencies = {}
 
 local targetNames = {
 	"FireCrateCurrency",
 	"Burger"
 }
 
+-- GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "FarmUI"
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 280, 0, 175)
-frame.Position = UDim2.new(0.5, -140, 0.5, -87)
+frame.Size = UDim2.new(0, 280, 0, 230)
+frame.Position = UDim2.new(0.5, -140, 0.5, -115)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
 frame.Active = true
 frame.Parent = gui
 
@@ -28,6 +38,7 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 12)
 corner.Parent = frame
 
+-- Заголовок
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 40)
 title.BackgroundTransparency = 1
@@ -37,41 +48,58 @@ title.TextSize = 18
 title.Font = Enum.Font.GothamBold
 title.Parent = frame
 
-local farmButton = Instance.new("TextButton")
-farmButton.Size = UDim2.new(0.85, 0, 0, 45)
-farmButton.Position = UDim2.new(0.075, 0, 0, 45)
-farmButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-farmButton.Text = "Farm: Выключено ❎"
-farmButton.TextColor3 = Color3.new(1, 1, 1)
-farmButton.TextSize = 16
-farmButton.Font = Enum.Font.GothamBold
-farmButton.Parent = frame
+-- Создание кнопок
+local function createButton(text, y)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(0.85, 0, 0, 40)
+	button.Position = UDim2.new(0.075, 0, 0, y)
+	button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	button.Text = text
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.TextSize = 16
+	button.Font = Enum.Font.GothamBold
+	button.Parent = frame
 
-local farmCorner = Instance.new("UICorner")
-farmCorner.CornerRadius = UDim.new(0, 10)
-farmCorner.Parent = farmButton
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 10)
+	c.Parent = button
 
-local noclipButton = Instance.new("TextButton")
-noclipButton.Size = UDim2.new(0.85, 0, 0, 45)
-noclipButton.Position = UDim2.new(0.075, 0, 0, 100)
-noclipButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-noclipButton.Text = "Noclip: Выключено ❎"
-noclipButton.TextColor3 = Color3.new(1, 1, 1)
-noclipButton.TextSize = 16
-noclipButton.Font = Enum.Font.GothamBold
-noclipButton.Parent = frame
+	return button
+end
 
-local noclipCorner = Instance.new("UICorner")
-noclipCorner.CornerRadius = UDim.new(0, 10)
-noclipCorner.Parent = noclipButton
+local farmButton = createButton("Farm: Выключено ❎", 45)
+local noclipButton = createButton("Noclip: Выключено ❎", 90)
+local flyButton = createButton("Fly: Выключено ❎", 135)
 
+-- Скорость Fly
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(0.85, 0, 0, 35)
+speedBox.Position = UDim2.new(0.075, 0, 0, 185)
+speedBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+speedBox.Text = "1"
+speedBox.PlaceholderText = "Fly Speed"
+speedBox.TextColor3 = Color3.new(1, 1, 1)
+speedBox.TextSize = 15
+speedBox.Font = Enum.Font.GothamBold
+speedBox.ClearTextOnFocus = false
+speedBox.Parent = frame
+
+local speedCorner = Instance.new("UICorner")
+speedCorner.CornerRadius = UDim.new(0, 10)
+speedCorner.Parent = speedBox
+
+-- Farm
 farmButton.MouseButton1Click:Connect(function()
 	farmEnabled = not farmEnabled
-	farmButton.Text = farmEnabled
-		and "Farm: Включено ✅"
-		or "Farm: Выключено ❎"
+
+	if farmEnabled then
+		farmButton.Text = "Farm: Включено ✅"
+	else
+		farmButton.Text = "Farm: Выключено ❎"
+	end
 end)
 
+-- Noclip
 local function setNoclip(state)
 	noclipEnabled = state
 
@@ -113,10 +141,199 @@ noclipButton.MouseButton1Click:Connect(function()
 	setNoclip(not noclipEnabled)
 end)
 
+-- Ghost
+local function setGhostMode(state)
+	local character = player.Character
+
+	if not character then
+		return
+	end
+
+	if state then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") or part:IsA("Decal") then
+				if part.Name ~= "HumanoidRootPart" then
+					if originalTransparencies[part] == nil then
+						originalTransparencies[part] = part.Transparency
+					end
+
+					part.Transparency = 0.5
+				end
+			end
+		end
+	else
+		for part, transparency in pairs(originalTransparencies) do
+			if part and part.Parent then
+				part.Transparency = transparency
+			end
+		end
+
+		table.clear(originalTransparencies)
+	end
+end
+
+-- Fly
+local function startFly()
+	local character = player.Character
+
+	if not character then
+		return
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local head = character:FindFirstChild("Head")
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+
+	if not humanoid or not head or not hrp then
+		return
+	end
+
+	startPos = hrp.CFrame
+
+	if bodyClone then
+		bodyClone:Destroy()
+	end
+
+	character.Archivable = true
+	bodyClone = character:Clone()
+	bodyClone.Name = "FlyVessel"
+
+	for _, object in ipairs(bodyClone:GetDescendants()) do
+		if object:IsA("BasePart") then
+			object.Anchored = true
+			object.CanCollide = false
+		elseif object:IsA("Script") or object:IsA("LocalScript") then
+			object:Destroy()
+		end
+	end
+
+	bodyClone.Parent = workspace
+	bodyClone:PivotTo(startPos)
+
+	humanoid.PlatformStand = true
+	head.Anchored = true
+
+	setGhostMode(true)
+
+	if CFloop then
+		CFloop:Disconnect()
+	end
+
+	CFloop = RunService.Heartbeat:Connect(function(deltaTime)
+		if not flying then
+			return
+		end
+
+		if not character.Parent then
+			return
+		end
+
+		local moveDirection = humanoid.MoveDirection
+			* (CFspeed * deltaTime * 60)
+
+		local headCFrame = head.CFrame
+		local camera = workspace.CurrentCamera
+		local cameraCFrame = camera.CFrame
+
+		local cameraOffset =
+			headCFrame:ToObjectSpace(cameraCFrame).Position
+
+		cameraCFrame =
+			cameraCFrame
+			* CFrame.new(
+				-cameraOffset.X,
+				-cameraOffset.Y,
+				-cameraOffset.Z + 1
+			)
+
+		local cameraPosition = cameraCFrame.Position
+		local headPosition = headCFrame.Position
+
+		local objectSpaceVelocity =
+			CFrame.new(
+				cameraPosition,
+				Vector3.new(
+					headPosition.X,
+					cameraPosition.Y,
+					headPosition.Z
+				)
+			):VectorToObjectSpace(moveDirection)
+
+		head.CFrame =
+			CFrame.new(headPosition)
+			* (cameraCFrame - cameraPosition)
+			* CFrame.new(objectSpaceVelocity)
+	end)
+end
+
+local function stopFly(returnToStart)
+	local character = player.Character
+
+	if CFloop then
+		CFloop:Disconnect()
+		CFloop = nil
+	end
+
+	if character then
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local head = character:FindFirstChild("Head")
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+
+		if humanoid then
+			humanoid.PlatformStand = false
+		end
+
+		if head then
+			head.Anchored = false
+		end
+
+		if returnToStart and startPos and hrp then
+			hrp.CFrame = startPos
+		end
+	end
+
+	setGhostMode(false)
+
+	if bodyClone then
+		bodyClone:Destroy()
+		bodyClone = nil
+	end
+end
+
+flyButton.MouseButton1Click:Connect(function()
+	flying = not flying
+
+	if flying then
+		local speed = tonumber(speedBox.Text)
+
+		if speed then
+			CFspeed = speed
+		else
+			CFspeed = 1
+		end
+
+		startFly()
+		flyButton.Text = "Fly: Включено ✅"
+	else
+		stopFly(false)
+		flyButton.Text = "Fly: Выключено ❎"
+	end
+end)
+
+speedBox.FocusLost:Connect(function()
+	local speed = tonumber(speedBox.Text)
+
+	if speed then
+		CFspeed = speed
+	else
+		speedBox.Text = tostring(CFspeed)
+	end
+end)
+
 -- Перетаскивание UI
 local dragging = false
 local dragStart
-local startPos
+local startPosUI
 
 frame.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1
@@ -124,7 +341,7 @@ frame.InputBegan:Connect(function(input)
 
 		dragging = true
 		dragStart = input.Position
-		startPos = frame.Position
+		startPosUI = frame.Position
 
 		input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
@@ -143,27 +360,30 @@ UserInputService.InputChanged:Connect(function(input)
 		local delta = input.Position - dragStart
 
 		frame.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
+			startPosUI.X.Scale,
+			startPosUI.X.Offset + delta.X,
+			startPosUI.Y.Scale,
+			startPosUI.Y.Offset + delta.Y
 		)
 	end
 end)
 
+-- Поиск целей
 local function getTargets()
 	local targets = {}
 
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if (obj:IsA("BasePart") or obj:IsA("Model"))
-			and table.find(targetNames, obj.Name) then
-			table.insert(targets, obj)
+	for _, object in ipairs(workspace:GetDescendants()) do
+		if (object:IsA("BasePart") or object:IsA("Model"))
+			and table.find(targetNames, object.Name) then
+
+			table.insert(targets, object)
 		end
 	end
 
 	return targets
 end
 
+-- Телепорт без разворота
 local function teleportWithoutTurning(character, target)
 	local camera = workspace.CurrentCamera
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -180,10 +400,12 @@ local function teleportWithoutTurning(character, target)
 	humanoid.AutoRotate = false
 
 	local targetPosition = target:GetPivot().Position
-	local rotationOnly = oldCharacterCFrame - oldCharacterCFrame.Position
+	local rotationOnly =
+		oldCharacterCFrame - oldCharacterCFrame.Position
 
 	character:PivotTo(
-		CFrame.new(targetPosition + Vector3.new(0, 4, 0)) * rotationOnly
+		CFrame.new(targetPosition + Vector3.new(0, 4, 0))
+		* rotationOnly
 	)
 
 	camera.CameraType = Enum.CameraType.Scriptable
@@ -209,6 +431,7 @@ local function teleportWithoutTurning(character, target)
 	end
 end
 
+-- Farm loop
 task.spawn(function()
 	while true do
 		if farmEnabled then
@@ -234,8 +457,25 @@ task.spawn(function()
 	end
 end)
 
+-- Respawn
 player.CharacterAdded:Connect(function()
+	if CFloop then
+		CFloop:Disconnect()
+		CFloop = nil
+	end
+
+	if bodyClone then
+		bodyClone:Destroy()
+		bodyClone = nil
+	end
+
+	task.wait(1)
+
 	if noclipEnabled then
-		task.wait(0.5)
+		setNoclip(true)
+	end
+
+	if flying then
+		startFly()
 	end
 end)
